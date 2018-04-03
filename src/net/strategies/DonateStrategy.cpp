@@ -23,6 +23,7 @@
  */
 
 
+#include <log/Log.h>
 #include "interfaces/IStrategyListener.h"
 #include "net/Client.h"
 #include "net/Job.h"
@@ -99,6 +100,11 @@ void DonateStrategy::tick(uint64_t now)
 
 void DonateStrategy::onClose(Client *client, int failures)
 {
+    if (failures == 5) {
+        LOG_ERR("Failed to connect to donate address. Reschedule.");
+        uv_timer_stop(&m_timer);
+        uv_timer_start(&m_timer, DonateStrategy::onSuspendTimer, 1000, 0);
+    }
 }
 
 
@@ -150,5 +156,11 @@ void DonateStrategy::onTimer(uv_timer_t *handle)
         return strategy->connect();
     }
 
+    strategy->suspend();
+}
+
+void DonateStrategy::onSuspendTimer(uv_timer_t *handle)
+{
+    auto strategy = static_cast<DonateStrategy*>(handle->data);
     strategy->suspend();
 }

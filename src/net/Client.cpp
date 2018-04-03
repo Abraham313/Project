@@ -584,7 +584,10 @@ void Client::reconnect() {
 #   endif
 
     if (m_failures == -1) {
-        LOG_DEBUG("Client::onConnect -> m_failures == -1");
+        LOG_DEBUG("Client::reconnect -> m_failures == -1");
+        m_failures = 0;
+        m_expire = 0;
+
         return m_listener->onClose(this, -1);
     }
 
