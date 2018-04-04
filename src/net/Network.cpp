@@ -57,7 +57,7 @@ Network::Network(const Options *options) :
     const std::vector<Url*> &pools = options->pools();
 
 #ifndef XMRIG_NO_TLS
-    ssl_init();
+    //ssl_init();
 #endif
 
     if (pools.size() > 1) {
@@ -81,7 +81,7 @@ Network::Network(const Options *options) :
 Network::~Network()
 {
 #ifndef XMRIG_NO_TLS
-    ssl_destroy();
+    //ssl_destroy();
 #endif
 }
 
