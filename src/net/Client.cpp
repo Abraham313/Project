@@ -188,29 +188,28 @@ bool Client::close()
 
     setState(ClosingState);
 
-    uv_stream_t *stream = reinterpret_cast<uv_stream_t*>(m_socket);
-
-    if (uv_is_readable(stream) == 1) {
-        uv_read_stop(stream);
-    }
-
-    if (uv_is_writable(stream) == 1) {
-        const int rc = uv_shutdown(new uv_shutdown_t, stream, [](uv_shutdown_t* req, int status) {
-            if (uv_is_closing(reinterpret_cast<uv_handle_t*>(req->handle)) == 0) {
-                uv_close(reinterpret_cast<uv_handle_t*>(req->handle), Client::onClose);
-            }
-
-            delete req;
-        });
-
-        assert(rc == 0);
-
-        if (rc != 0) {
-            onClose();
+    if (uv_is_closing(reinterpret_cast<uv_handle_t*>(m_socket)) == 0) {
+#   ifndef XMRIG_NO_SSL_TLS
+        if (m_url.useTls() && m_uv_tls) {
+            LOG_WARN("uv_tls_close");
+            uv_tls_close(m_uv_tls, Client::onTlsClose);
+        } else {
+#   endif
+            LOG_WARN("uv_close");
+            uv_close(reinterpret_cast<uv_handle_t*>(m_socket), Client::onClose);
+#   ifndef XMRIG_NO_SSL_TLS
         }
-    }
-    else {
-        uv_close(reinterpret_cast<uv_handle_t*>(m_socket), Client::onClose);
+#   endif
+    } else {
+#   ifndef XMRIG_NO_SSL_TLS
+        if (m_url.useTls()) {
+            onTlsClose(m_uv_tls);
+        } else {
+#   endif
+            onClose(reinterpret_cast<uv_handle_t*>(m_socket));
+#   ifndef XMRIG_NO_SSL_TLS
+        }
+#   endif
     }
 
     return true;
@@ -360,7 +359,6 @@ int64_t Client::send(size_t size)
 
 #   ifndef XMRIG_NO_SSL_TLS
     if (m_url.useTls()) {
-
         if (uv_tls_write(m_uv_tls, &buf, Client::onTlsWrite) < 0) {
             close();
             return -1;
@@ -710,7 +708,7 @@ void Client::onConnect(uv_connect_t *req, int status)
 #   ifndef XMRIG_NO_SSL_TLS
     if (client->m_url.useTls()) {
         uv_tls_t *sclient = static_cast<uv_tls_t*>(malloc(sizeof(*sclient)));
-        if (uv_tls_init(&client->m_tls_ctx, (uv_tcp_t*) req->handle, sclient) < 0) {
+        if (uv_tls_init(&client->m_tls_ctx, (uv_tcp_t*) req->handle, req->data, sclient) < 0) {
             free(sclient);
             return;
         }
@@ -830,7 +828,7 @@ void Client::onResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 
 void Client::onTlsHandshake(uv_tls_t* tls, int status)
 {
-    auto client = getClient(tls->tcp_hdl->data);
+    auto client = getClient(tls->data);
 
     if (status == 0) {
         client->m_uv_tls = tls;
@@ -848,7 +846,7 @@ void Client::onTlsHandshake(uv_tls_t* tls, int status)
 
 void Client::onTlsRead(uv_tls_t* strm, ssize_t nrd, const uv_buf_t* bfr)
 {
-    auto client = getClient(strm->tcp_hdl->data);
+    auto client = getClient(strm->data);
 
     uv_stream_t tmpStrm;
     tmpStrm.data = client;
@@ -865,7 +863,7 @@ void Client::onTlsClose(uv_tls_t* utls)
 {
     LOG_WARN("onTlsClose()");
 
-    auto client = getClient(utls->tcp_hdl->data);
+    auto client = getClient(utls->data);
 
     delete client->m_uv_tls;
     client->m_uv_tls = nullptr;
