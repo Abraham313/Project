@@ -88,26 +88,9 @@ net_close(net_t * net, void (*cb)(uv_handle_t*)) {
 
 int
 net_free(net_t * net) {
-  if (net != NULL) {
-    if (net->handle != NULL) {
-        free(net->handle);
-        net->handle = NULL;
-    }
-
-    if (net->conn != NULL) {
-      free(net->conn);
-      net->conn = NULL;
-    }
-
-    if (net->resolver != NULL) {
-      free(net->resolver);
-      net->resolver = NULL;
-    }
-
-    free(net);
-    net = NULL;
-  }
-
+  net_close(net, NULL);
+  free(net->resolver);
+  free(net);
   return NET_OK;
 }
 
@@ -221,7 +204,12 @@ net_connect_cb(uv_connect_t *conn, int err) {
   int read;
 
   if (err < 0) {
-    net_free(net);
+    if (net->error_cb) {
+      net->error_cb(net, err, (char *) uv_strerror(err));
+    } else {
+      printf("error(%s:%d) %s", net->hostname, net->port, (char *) uv_strerror(err));
+      net_free(net);
+    }
     return;
   }
 

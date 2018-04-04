@@ -392,6 +392,10 @@ void Client::onClose(net_t *net)
     if (net) {
         auto client = getClient(net->data);
 
+        net->close_cb = NULL;
+        net->read_cb = NULL;
+        net->conn_cb = NULL;
+        net->error_cb = NULL;
         net_free(net);
 
         client->m_net = nullptr;
