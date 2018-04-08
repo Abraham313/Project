@@ -716,9 +716,10 @@ void Client::onConnect(uv_connect_t *req, int status)
         }
 
         uv_tls_connect(sclient, Client::onTlsHandshake);
+        delete req;
     } else {
 #   endif
-        client->m_stream = static_cast<uv_stream_t*>(req->handle);
+        client->m_stream = req->handle;
         client->m_stream->data = req->data;
         client->setState(ConnectedState);
 
@@ -734,11 +735,9 @@ void Client::onConnect(uv_connect_t *req, int status)
 
 void Client::onRead(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
 {
-    auto client = getClient(stream->data);
-    if (!client) {
-        return;
-    }
+    LOG_WARN("onRead()");
 
+    auto client = getClient(stream->data);
     if (nread < 0) {
         if (nread != UV_EOF && !client->m_quiet) {
             LOG_ERR("[%s:%u] read error: \"%s\"", client->m_url.host(), client->m_url.port(), uv_strerror((int) nread));
@@ -756,7 +755,7 @@ void Client::onRead(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
     client->m_recvBufPos += nread;
 
     char* end;
-    char* start = client->m_recvBuf.base;
+    char* start = buf->base;
     size_t remaining = client->m_recvBufPos;
 
     while ((end = static_cast<char*>(memchr(start, '\n', remaining))) != nullptr) {
@@ -773,11 +772,11 @@ void Client::onRead(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
         return;
     }
 
-    if (start == client->m_recvBuf.base) {
+    if (start == buf->base) {
         return;
     }
 
-    memcpy(client->m_recvBuf.base, start, remaining);
+    memcpy(buf->base, start, remaining);
     client->m_recvBufPos = remaining;
 }
 
@@ -830,6 +829,8 @@ void Client::onResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 
 void Client::onTlsHandshake(uv_tls_t* tls, int status)
 {
+    LOG_WARN("onTlsHandshake() status: %d", status);
+
     auto client = getClient(tls->data);
 
     if (status == 0) {
@@ -848,6 +849,8 @@ void Client::onTlsHandshake(uv_tls_t* tls, int status)
 
 void Client::onTlsRead(uv_tls_t* strm, ssize_t nrd, const uv_buf_t* bfr)
 {
+    LOG_WARN("onTlsRead()");
+
     auto client = getClient(strm->data);
 
     uv_stream_t tmpStrm;
@@ -867,8 +870,8 @@ void Client::onTlsClose(uv_tls_t* utls)
 
     auto client = getClient(utls->data);
 
-    delete client->m_uv_tls;
-    client->m_uv_tls = nullptr;
+    //delete client->m_uv_tls;
+    //client->m_uv_tls = nullptr;
 
     uv_handle_s tmpHandle;
     tmpHandle.data = client;
