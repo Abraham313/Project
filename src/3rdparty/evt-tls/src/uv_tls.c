@@ -62,8 +62,12 @@ int uv_tls_init(evt_ctx_t *ctx, uv_tcp_t *tcp, void* data, uv_tls_t *endpt)
 void on_tcp_eof(uv_handle_t *handle)
 {
     uv_tls_t *utls = (uv_tls_t*)handle->data;
-    evt_tls_free(utls->tls);
-    free(handle);
+    if (utls != NULL) {
+        evt_tls_free(utls->tls);
+        if (utls->tls_hsk_cb != NULL) {
+            utls->tls_hsk_cb(utls, -1);
+        }
+    }
 }
 
 void on_tcp_read(uv_stream_t *stream, ssize_t nrd, const uv_buf_t *data)

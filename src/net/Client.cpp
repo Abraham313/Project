@@ -463,6 +463,8 @@ void Client::login()
 
 void Client::onClose()
 {
+    LOG_WARN("onClose()");
+
     delete m_socket;
 
     m_stream = nullptr;
@@ -616,6 +618,8 @@ void Client::ping()
 
 void Client::reconnect()
 {
+    LOG_WARN("reconnect()");
+
     if (!m_listener) {
         delete this;
 
@@ -669,6 +673,8 @@ void Client::startTimeout()
 
 void Client::onAllocBuffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
 {
+    LOG_WARN("onAllocBuffer()");
+
     auto client = getClient(handle->data);
     if (!client) {
         return;
@@ -681,6 +687,8 @@ void Client::onAllocBuffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t 
 
 void Client::onClose(uv_handle_t *handle)
 {
+    LOG_WARN("onClose(uv_handle_t)");
+
     auto client = getClient(handle->data);
     if (!client) {
         return;
@@ -692,6 +700,8 @@ void Client::onClose(uv_handle_t *handle)
 
 void Client::onConnect(uv_connect_t *req, int status)
 {
+    LOG_WARN("onConnect()");
+
     auto client = getClient(req->data);
     if (!client) {
         return;
@@ -783,6 +793,8 @@ void Client::onRead(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
 
 void Client::onResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 {
+    LOG_WARN("onResolved()");
+
     auto client = getClient(req->data);
     if (!client) {
         return;
@@ -841,8 +853,11 @@ void Client::onTlsHandshake(uv_tls_t* tls, int status)
         uv_tls_read(tls, Client::onTlsRead);
 
         client->login();
+    } else if (status == -1) {
+        uv_handle_s tmpHandle;
+        tmpHandle.data = client;
+        client->onClose(&tmpHandle);
     } else {
-        LOG_WARN("onTlsHandshake() status %d", status);
         client->close();
     }
 }
