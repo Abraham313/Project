@@ -20,6 +20,7 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include <uv.h>
 
 #ifdef WIN32
     #define WIN32_LEAN_AND_MEAN  /* avoid including junk */
