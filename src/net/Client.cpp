@@ -198,6 +198,7 @@ bool Client::parseJob(const rapidjson::Value &params, int *code)
     }
 
     Job job(m_id, m_nicehash);
+
     if (!job.setId(params["job_id"].GetString())) {
         *code = 3;
         return false;
@@ -218,17 +219,19 @@ bool Client::parseJob(const rapidjson::Value &params, int *code)
 
         switch (variantFromProxy) {
             case -1:
-                Options::i()->setForcePowVersion(Options::POW_AUTODETECT);
+                job.setPowVersion(Options::POW_AUTODETECT);
                 break;
             case 0:
-                Options::i()->setForcePowVersion(Options::POW_V1);
+                job.setPowVersion(Options::POW_V1);
                 break;
             case 1:
-                Options::i()->setForcePowVersion(Options::POW_V2);
+                job.setPowVersion(Options::POW_V2);
                 break;
             default:
                 break;
         }
+    } else {
+        job.setPowVersion(Options::i()->forcePowVersion());
     }
 
     if (m_job != job) {
