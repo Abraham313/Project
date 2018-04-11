@@ -170,7 +170,7 @@ void Network::onResultAccepted(Client *client, const SubmitResult &result, const
 void Network::setJob(Client *client, const Job &job)
 {
     if (m_options->colors()) {
-        LOG_INFO("\x1B[01;35mnew job\x1B[0m from \x1B[01;37m%s:%d\x1B[0m with diff \x1B[01;37m%d\x1B[0m for PoW v\x1B[01;37m%d",
+        LOG_INFO("\x1B[01;35mnew job\x1B[0m from \x1B[01;37m%s:%d\x1B[0m with diff \x1B[01;37m%d\x1B[0m for PoW \x1B[01;37mv%d",
                  client->host(), client->port(), job.diff(), job.powVersion());
     }
     else {

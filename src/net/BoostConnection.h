@@ -82,9 +82,9 @@ public:
 
     void triggerRead()
     {
-        boost::asio::async_read(socket_.get(),
-                                boost::asio::buffer(receiveBuffer_, sizeof(receiveBuffer_)),
-                                boost::asio::transfer_at_least(1),
+        boost::asio::async_read_until(socket_.get(),
+                                receiveBuffer_,
+                                '\n',
                                 boost::bind(&BoostConnection::handleRead, this,
                                             boost::asio::placeholders::error,
                                             boost::asio::placeholders::bytes_transferred));
@@ -95,8 +95,12 @@ public:
     {
         if (!error)
         {
-            LOG_DEBUG("[%s:%d] Read: %.*s", getConnectedIp().c_str(), getConnectedPort(), bytes_transferred, receiveBuffer_);
-            notifyRead(receiveBuffer_, bytes_transferred);
+            std::string data(
+                    boost::asio::buffers_begin(receiveBuffer_.data()),
+                    boost::asio::buffers_begin(receiveBuffer_.data()) + bytes_transferred);
+
+            //LOG_DEBUG("[%s:%d] Read: %s", getConnectedIp().c_str(), getConnectedPort(), data.c_str());
+            notifyRead(const_cast<char*>(data.c_str()), data.size());
             triggerRead();
         }
         else
@@ -109,7 +113,9 @@ public:
 private:
     boost::asio::io_service ioService_;
     SOCKET socket_;
-    char receiveBuffer_[2048];
+
+    boost::asio::streambuf receiveBuffer_;
+    //char receiveBuffer_[2048];
 };
 
 #endif /* __BOOSTCONNECTION_H__ */

@@ -114,7 +114,7 @@ add_definitions(-fexceptions)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 find_package(UV REQUIRED)
-find_package(Boost COMPONENTS system REQUIRED)
+find_package(Boost 1.48.0 COMPONENTS system REQUIRED)
 
 include(cmake/flags.cmake)
 
@@ -203,6 +203,7 @@ endif()
 include_directories(src)
 include_directories(src/3rdparty)
 include_directories(${UV_INCLUDE_DIR})
+include_directories(${Boost_INCLUDE_DIRS})
 
 add_library(xmrig_common STATIC ${SOURCES_COMMON})
 add_library(xmrig_os_dependencies STATIC ${SOURCES_OS} ${SOURCES_SYSLOG})

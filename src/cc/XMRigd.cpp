@@ -67,8 +67,7 @@ int main(int argc, char **argv) {
     do {
         status = system(xmrigMinerPath.c_str());
 #if defined(_WIN32) || defined(WIN32)
-    } while (status != EINVAL && status != SIGHUP &&
-             status != SIGINT && status != SIGILL);
+    } while (status != EINVAL && status != SIGHUP && status != SIGINT);
 
 	if (status == EINVAL) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(3000));
@@ -77,7 +76,6 @@ int main(int argc, char **argv) {
 
         printf("Exit: %d converted WEXITSTATUS: %d\n", status, WEXITSTATUS(status));
 
-    } while (WEXITSTATUS(status) != EINVAL && WEXITSTATUS(status) != SIGHUP &&
-             WEXITSTATUS(status) != SIGINT && WEXITSTATUS(status) != SIGILL);
+    } while (WEXITSTATUS(status) != EINVAL && WEXITSTATUS(status) != SIGHUP && WEXITSTATUS(status) != SIGINT);
 #endif
 }

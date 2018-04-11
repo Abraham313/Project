@@ -527,6 +527,14 @@ void Client::onReceived(char* data, std::size_t size)
 {
     LOG_DEBUG("onReceived");
 
+    if (size == 0) {
+        if (size != UV_EOF && !m_quiet) {
+            LOG_ERR("[%s:%u] read error", m_url.host(), m_url.port());
+        }
+
+        return close();
+    }
+
     m_recvBufPos += size;
 
     char* end;
