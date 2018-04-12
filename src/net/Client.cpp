@@ -234,9 +234,6 @@ bool Client::parseJob(const rapidjson::Value &params, int *code)
         job.setPowVersion(Options::i()->forcePowVersion());
     }
 
-    reconnect();
-    return false;
-
     if (m_job != job) {
         m_jobs++;
         m_job = std::move(job);
@@ -300,18 +297,10 @@ bool Client::parseLogin(const rapidjson::Value &result, int *code)
 
 int64_t Client::send(char* buf, size_t size)
 {
-    if (!m_connection) {
-        LOG_DEBUG_ERR("[%s:%u] Send failed", m_url.host(), m_url.port());
-        reconnect();
-        return -1;
-    }
-
-    if (!m_connection->send(buf, size)) {
-        reconnect();
-        return -1;
-    }
+    m_connection->send(buf, size);
 
     m_expire = uv_now(uv_default_loop()) + kResponseTimeout;
+
     return m_sequence++;
 }
 
@@ -529,14 +518,6 @@ void Client::startTimeout()
 void Client::onReceived(char* data, std::size_t size)
 {
     LOG_DEBUG("onReceived");
-
-    if (size == 0) {
-        if (!m_quiet) {
-            LOG_ERR("[%s:%u] read error", m_url.host(), m_url.port());
-        }
-
-        return reconnect();
-    }
 
     m_recvBufPos += size;
 

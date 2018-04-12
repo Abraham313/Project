@@ -21,7 +21,6 @@
 
 #include "net/Connection.h"
 
-Connection::Ptr establishBoostTcpConnection(const ConnectionListener::Ptr& listener,
-                                            const std::string& host, uint16_t port);
+Connection::Ptr establishBoostTcpConnection(const ConnectionListener::Ptr& listener);
 
 #endif /* __BOOSTTCPCONNECTION_H__ */

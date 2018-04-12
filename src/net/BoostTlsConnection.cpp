@@ -64,8 +64,7 @@ private:
     SocketType socket_;
 };
 
-Connection::Ptr establishBoostTlsConnection(const ConnectionListener::Ptr& listener,
-                                            const std::string& host, uint16_t port)
+Connection::Ptr establishBoostTlsConnection(const ConnectionListener::Ptr& listener)
 {
-    return std::make_shared<BoostConnection<BoostTlsSocket> >(listener, host, port);
+    return std::make_shared<BoostConnection<BoostTlsSocket> >(listener);
 }

@@ -61,17 +61,20 @@ Connection::Ptr establishConnection(const ConnectionListener::Ptr& listener,
         switch (type) {
             case CONNECTION_TYPE_TLS:
 #ifndef XMRIG_NO_TLS
-                connection = establishBoostTlsConnection(listener, host, port);
+                connection = establishBoostTlsConnection(listener);
                 break;
 #endif
             case CONNECTION_TYPE_TCP:
-                connection = establishBoostTcpConnection(listener, host, port);
+                connection = establishBoostTcpConnection(listener);
                 break;
         }
+
+        connection->connect(host, port);
     }
     catch (...) {
         LOG_ERR("[%s:%d] Failed to establish connection: %s", host.c_str(), port, boost::current_exception_diagnostic_information().c_str());
     }
+
 
     return connection;
 }

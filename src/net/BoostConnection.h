@@ -24,15 +24,26 @@
 #include "log/Log.h"
 
 template <class SOCKET>
-class BoostConnection : public Connection
+class BoostConnection : public Connection, public std::enable_shared_from_this<BoostConnection<SOCKET> >
 {
 public:
-    BoostConnection(const ConnectionListener::Ptr& listener,
-                    const std::string& server, uint16_t port)
+    BoostConnection(const ConnectionListener::Ptr& listener)
             : Connection(listener)
             , socket_(ioService_)
     {
-        LOG_INFO("[%s:%d] Connecting", server.c_str(), port);
+
+    }
+
+    ~BoostConnection()
+    {
+        if (isConnected()) {
+            disconnect();
+        }
+    }
+
+    void connect(const std::string& server, uint16_t port)
+    {
+        LOG_DEBUG("[%s:%d] Connecting", server.c_str(), port);
 
         boost::asio::ip::tcp::resolver resolver(ioService_);
         boost::asio::ip::tcp::resolver::query query(server, std::to_string(port));
@@ -44,21 +55,20 @@ public:
 
         std::thread([this]() { ioService_.run(); }).detach();
 
-        LOG_INFO("[%s:%d] Connected", server.c_str(), port);
+        LOG_DEBUG("[%s:%d] Connected", server.c_str(), port);
     }
 
-    ~BoostConnection()
+    void disconnect()
     {
-        LOG_DEBUG("[%s:%d] Shutdown", getConnectedIp().c_str(), getConnectedPort());
-
         socket_.get().lowest_layer().close();
-
-        ioService_.stop();
     }
 
     bool isConnected() const override
     {
-        return socket_.get().lowest_layer().is_open();
+        boost::system::error_code ec;
+        socket_.get().lowest_layer().remote_endpoint(ec);
+
+        return !ec && socket_.get().lowest_layer().is_open();
     }
 
     std::string getConnectedIp() const override
@@ -82,6 +92,7 @@ public:
             LOG_DEBUG_ERR("[%s:%d] Sending failed: %s", getConnectedIp().c_str(), getConnectedPort(), error.message().c_str());
             notifyError(error.message());
         }
+
         return !error;
     }
 
@@ -90,7 +101,7 @@ public:
         boost::asio::async_read(socket_.get(),
                                 boost::asio::buffer(receiveBuffer_, sizeof(receiveBuffer_)),
                                 boost::asio::transfer_at_least(1),
-                                boost::bind(&BoostConnection::handleRead, this,
+                                boost::bind(&BoostConnection::handleRead, this->shared_from_this(),
                                             boost::asio::placeholders::error,
                                             boost::asio::placeholders::bytes_transferred));
     }

@@ -52,6 +52,8 @@ protected:
     void notifyError(const std::string& error);
 
 public:
+    virtual void connect(const std::string& server, uint16_t port) = 0;
+    virtual void disconnect() = 0;
     virtual bool isConnected()  const = 0;
     virtual std::string getConnectedIp() const = 0;
     virtual uint16_t getConnectedPort() const = 0;
