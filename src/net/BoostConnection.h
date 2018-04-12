@@ -32,7 +32,7 @@ public:
             : Connection(listener)
             , socket_(ioService_)
     {
-        LOG_DEBUG("[%s:%d] Connecting", server.c_str(), port);
+        LOG_INFO("[%s:%d] Connecting", server.c_str(), port);
 
         boost::asio::ip::tcp::resolver resolver(ioService_);
         boost::asio::ip::tcp::resolver::query query(server, std::to_string(port));
@@ -44,7 +44,7 @@ public:
 
         std::thread([this]() { ioService_.run(); }).detach();
 
-        LOG_DEBUG("[%s:%d] Connected", server.c_str(), port);
+        LOG_INFO("[%s:%d] Connected", server.c_str(), port);
     }
 
     ~BoostConnection()

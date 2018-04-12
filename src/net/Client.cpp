@@ -234,6 +234,9 @@ bool Client::parseJob(const rapidjson::Value &params, int *code)
         job.setPowVersion(Options::i()->forcePowVersion());
     }
 
+    reconnect();
+    return false;
+
     if (m_job != job) {
         m_jobs++;
         m_job = std::move(job);
@@ -248,7 +251,7 @@ bool Client::parseJob(const rapidjson::Value &params, int *code)
         LOG_WARN("[%s:%u] duplicate job received, reconnect", m_url.host(), m_url.port());
     }
 
-    close();
+    reconnect();
     return false;
 }
 
@@ -304,7 +307,7 @@ int64_t Client::send(char* buf, size_t size)
     }
 
     if (!m_connection->send(buf, size)) {
-        close();
+        reconnect();
         return -1;
     }
 
@@ -433,7 +436,7 @@ void Client::parseResponse(int64_t id, const rapidjson::Value &result, const rap
         }
 
         if (id == 1 || isCriticalError(message)) {
-            close();
+            reconnect();
         }
 
         return;
@@ -450,7 +453,7 @@ void Client::parseResponse(int64_t id, const rapidjson::Value &result, const rap
                 LOG_ERR("[%s:%u] Login error code: %d", m_url.host(), m_url.port(), code);
             }
 
-            return close();
+            return reconnect();
         }
 
         m_failures = 0;
@@ -532,7 +535,7 @@ void Client::onReceived(char* data, std::size_t size)
             LOG_ERR("[%s:%u] read error", m_url.host(), m_url.port());
         }
 
-        return close();
+        return reconnect();
     }
 
     m_recvBufPos += size;
@@ -570,5 +573,6 @@ void Client::onError(const std::string& error)
     if (!m_quiet) {
         LOG_ERR("[%s:%u] Error: \"%s\"", m_url.host(), m_url.port(), error.c_str());
     }
-    close();
+
+    reconnect();
 }
