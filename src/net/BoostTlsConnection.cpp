@@ -46,22 +46,17 @@ public:
             socket_.lowest_layer(), iterator,
             [this, handler](const boost::system::error_code& ec, const ITERATOR& iterator)
             {
-              if (!ec)
-              {
+              if (!ec) {
                   socket_.lowest_layer().set_option(boost::asio::ip::tcp::no_delay(true));
                   socket_.lowest_layer().set_option(boost::asio::socket_base::keep_alive(true));
                   socket_.async_handshake(
                       boost::asio::ssl::stream_base::client,
-                      [handler](const boost::system::error_code& ec)
-                      {
+                      [handler](const boost::system::error_code& ec) {
                         handler(ec);
                       });
-              }
-              else
-              {
+              } else {
                   handler(ec);
               }
-
             }
         );
     }

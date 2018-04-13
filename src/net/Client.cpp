@@ -519,12 +519,18 @@ void Client::startTimeout()
 void Client::onConnected()
 {
     LOG_DEBUG("onConnected");
+
     login();
 }
 
 void Client::onReceived(char* data, std::size_t size)
 {
     LOG_DEBUG("onReceived");
+
+    if ((size_t) size > (sizeof(m_buf) - 8 - m_recvBufPos)) {
+        reconnect();
+        return;
+    }
 
     m_recvBufPos += size;
 

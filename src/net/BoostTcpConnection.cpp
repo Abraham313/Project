@@ -43,14 +43,13 @@ public:
             socket_, iterator,
             [this, handler](const boost::system::error_code& ec, const ITERATOR& iterator)
             {
-                if (!ec)
-                {
+                if (!ec) {
                     socket_.set_option(boost::asio::ip::tcp::no_delay(true));
                     socket_.set_option(boost::asio::socket_base::keep_alive(true));
                 }
                 handler(ec);
             }
-            );
+        );
     }
 
     SocketType& get()

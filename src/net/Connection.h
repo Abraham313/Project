@@ -59,7 +59,7 @@ public:
     virtual bool isConnected()  const = 0;
     virtual std::string getConnectedIp() const = 0;
     virtual uint16_t getConnectedPort() const = 0;
-    virtual bool send(const char* data, std::size_t size) = 0;
+    virtual void send(const char* data, std::size_t size) = 0;
 
 private:
     ConnectionListener::WeakPtr listener_;
