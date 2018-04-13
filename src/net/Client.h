@@ -68,6 +68,9 @@ public:
     inline void setQuiet(bool quiet)         { m_quiet = quiet; }
     inline void setRetryPause(int ms)        { m_retryPause = ms; }
 
+    static void onConnected(uv_async_t *handle);
+    //static void onReceived(uv_async_t *handle);
+
 private:
     bool isCriticalError(const char *message);
     bool parseJob(const rapidjson::Value &params, int *code);
@@ -83,7 +86,7 @@ private:
     void ping();
     void startTimeout();
 
-    virtual void onConnected();
+    virtual void scheduleOnConnected();
     virtual void onReceived(char* data, std::size_t size);
     virtual void onError(const std::string& error);
 
@@ -109,6 +112,10 @@ private:
     uv_buf_t m_recvBuf;
 
     Connection::Ptr m_connection;
+
+    uv_async_t onConnectedAsync;
+    uv_async_t onReceivedAsync;
+    uv_async_t onErrorAsync;
 
     uv_timer_t m_keepAliveTimer;
 

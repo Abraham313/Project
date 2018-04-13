@@ -63,13 +63,16 @@ Client::Client(int id, const char *agent, IClientListener *listener) :
     m_recvBuf.len  = sizeof(m_buf);
 
     m_keepAliveTimer.data = this;
+
     uv_timer_init(uv_default_loop(), &m_keepAliveTimer);
+
+    uv_async_init(uv_default_loop(), &onConnectedAsync, Client::onConnected);
 }
 
 
 Client::~Client()
 {
-
+    uv_close((uv_handle_t*) &onConnectedAsync, NULL);
 }
 
 void Client::connect(const Url *url)
@@ -516,11 +519,22 @@ void Client::startTimeout()
     uv_timer_start(&m_keepAliveTimer, [](uv_timer_t *handle) { getClient(handle->data)->ping(); }, kKeepAliveTimeout, 0);
 }
 
-void Client::onConnected()
+void Client::onConnected(uv_async_t *handle)
 {
     LOG_DEBUG("onConnected");
 
-    login();
+    auto client = getClient(handle->data);
+    if (client) {
+        client->login();
+    }
+}
+
+void Client::scheduleOnConnected()
+{
+    LOG_DEBUG("scheduleOnConnected");
+    onConnectedAsync.data = this;
+
+    uv_async_send(&onConnectedAsync);
 }
 
 void Client::onReceived(char* data, std::size_t size)

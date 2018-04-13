@@ -38,7 +38,7 @@ void Connection::notifyConnected()
     ConnectionListener::Ptr listener = listener_.lock();
     if (listener)
     {
-        listener->onConnected();
+        listener->scheduleOnConnected();
     }
 }
 

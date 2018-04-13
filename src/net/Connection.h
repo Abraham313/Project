@@ -36,7 +36,7 @@ protected:
     virtual ~ConnectionListener() {};
 
 public:
-    virtual void onConnected() = 0;
+    virtual void scheduleOnConnected() = 0;
     virtual void onReceived(char* data, std::size_t size) = 0;
     virtual void onError(const std::string& error) = 0;
 };
