@@ -1,4 +1,13 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.0)
+
+include("cmake/HunterGate.cmake")
+set(HUNTER_STATUS_DEBUG OFF)
+set(HUNTER_TLS_VERIFY ON)
+HunterGate(
+        URL "https://github.com/ruslo/hunter/archive/v0.20.39.tar.gz"
+        SHA1 "b49c4b58e17c1473e822f8b21fcde92fee25791d"
+)
+
 project(xmrig)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -15,6 +24,12 @@ set(DAEMON_EXECUTABLE_NAME "xmrigDaemon" CACHE STRING "Daemon executable file na
 
 include (CheckIncludeFile)
 include (cmake/cpu.cmake)
+
+hunter_add_package(Boost COMPONENTS system)
+hunter_add_package(libuv)
+if (WITH_TLS)
+    hunter_add_package(OpenSSL)
+endif()
 
 set(SOURCES
     src/api/NetworkState.cpp
@@ -113,8 +128,8 @@ add_definitions(-fexceptions)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-find_package(UV REQUIRED)
-find_package(Boost 1.63.0 COMPONENTS system REQUIRED)
+find_package(libuv CONFIG REQUIRED)
+find_package(Boost 1.62.0 COMPONENTS system REQUIRED)
 
 include(cmake/flags.cmake)
 
@@ -202,9 +217,6 @@ endif()
 
 include_directories(src)
 include_directories(src/3rdparty)
-include_directories(${UV_INCLUDE_DIR})
-include_directories(${Boost_INCLUDE_DIRS})
-include_directories(${Boost_INCLUDE_DIRS})
 
 add_library(xmrig_common STATIC ${SOURCES_COMMON})
 add_library(xmrig_os_dependencies STATIC ${SOURCES_OS} ${SOURCES_SYSLOG})
@@ -221,8 +233,8 @@ endif (WITH_CC_SERVER OR WITH_CC_CLIENT)
 add_executable(xmrigMiner ${SOURCES} ${SOURCES_CRYPTO} ${HTTPD_SOURCES} ${SOURCES_CC_CLIENT} res/app.rc)
 set_target_properties(xmrigMiner PROPERTIES OUTPUT_NAME ${MINER_EXECUTABLE_NAME})
 
-target_link_libraries(xmrigMiner xmrig_common xmrig_os_dependencies xmrig_cpuid ${Boost_LIBRARIES}
-        ${UV_LIBRARIES} ${MHD_LIBRARY} ${EXTRA_LIBS} ${CPUID_LIB})
+target_link_libraries(xmrigMiner xmrig_common xmrig_os_dependencies xmrig_cpuid Boost::system
+        libuv::uv ${MHD_LIBRARY} ${EXTRA_LIBS} ${CPUID_LIB})
 
 if (WITH_CC_CLIENT)
     target_link_libraries(xmrigMiner xmrig_cc_common)
@@ -241,7 +253,7 @@ if (WITH_CC_SERVER AND MHD_FOUND)
     add_executable(xmrigCCServer ${SOURCES_CC_SERVER} res/app.rc)
     target_link_libraries(xmrigCCServer
             xmrig_common_cc xmrig_os_dependencies xmrig_cpuid xmrig_cc_common
-            ${UV_LIBRARIES} ${MHD_LIBRARY} ${EXTRA_LIBS} ${CPUID_LIB})
+            libuv::uv ${MHD_LIBRARY} ${EXTRA_LIBS} ${CPUID_LIB})
 
     if (WITH_TLS)
 	    target_link_libraries(xmrigCCServer xmrig_tls ${OPENSSL_LIBRARIES})
