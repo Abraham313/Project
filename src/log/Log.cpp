@@ -38,6 +38,8 @@ Log *Log::m_self = nullptr;
 
 void Log::message(Log::Level level, const char* fmt, ...)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
     va_list args;
     va_list copy;
     va_start(args, fmt);
@@ -52,6 +54,8 @@ void Log::message(Log::Level level, const char* fmt, ...)
 
 void Log::text(const char* fmt, ...)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
     va_list args;
     va_list copy;
     va_start(args, fmt);

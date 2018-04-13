@@ -27,6 +27,7 @@
 
 #include <uv.h>
 #include <vector>
+#include <mutex>
 
 
 class ILogBackend;
@@ -68,6 +69,7 @@ private:
 
     static Log *m_self;
     std::vector<ILogBackend*> m_backends;
+    std::recursive_mutex m_mutex;
 };
 
 
