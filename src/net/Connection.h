@@ -36,6 +36,7 @@ protected:
     virtual ~ConnectionListener() {};
 
 public:
+    virtual void onConnected() = 0;
     virtual void onReceived(char* data, std::size_t size) = 0;
     virtual void onError(const std::string& error) = 0;
 };
@@ -48,6 +49,7 @@ public:
 protected:
     Connection(const ConnectionListener::Ptr& listener);
     virtual ~Connection() {};
+    void notifyConnected();
     void notifyRead(char* data, size_t size);
     void notifyError(const std::string& error);
 

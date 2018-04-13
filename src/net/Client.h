@@ -83,6 +83,7 @@ private:
     void ping();
     void startTimeout();
 
+    virtual void onConnected();
     virtual void onReceived(char* data, std::size_t size);
     virtual void onError(const std::string& error);
 

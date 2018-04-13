@@ -39,24 +39,31 @@ public:
         disconnect();
     }
 
-    void connect(const std::string& server, uint16_t port)
+    void connect(const std::string& server, uint16_t port) override
     {
+        std::string serverCopy = server;
         LOG_DEBUG("[%s:%d] Connecting", server.c_str(), port);
 
         boost::asio::ip::tcp::resolver resolver(ioService_);
         boost::asio::ip::tcp::resolver::query query(server, std::to_string(port));
         boost::asio::ip::tcp::resolver::iterator iterator = resolver.resolve(query);
 
-        socket_.connect(iterator);
-
-        triggerRead();
+        socket_.connect(
+            iterator,
+            [this, serverCopy, port](const boost::system::error_code& ec)
+            {
+                if (!ec)
+                {
+                    triggerRead();
+                    LOG_DEBUG("[%s:%d] Connected", serverCopy.c_str(), port);
+                    notifyConnected();
+                }
+            });
 
         std::thread([this]() { ioService_.run(); }).detach();
-
-        LOG_DEBUG("[%s:%d] Connected", server.c_str(), port);
     }
 
-    void disconnect()
+    void disconnect() override
     {
         if (isConnected()) {
             LOG_DEBUG("[%s:%d] Disconnecting", getConnectedIp().c_str(), getConnectedPort());
@@ -83,19 +90,24 @@ public:
         return isConnected() ? socket_.get().lowest_layer().remote_endpoint().port() : 0;
     }
 
-    bool send(const char* data, std::size_t size)
+    bool send(const char* data, std::size_t size) override
     {
         LOG_DEBUG("[%s:%d] Sending: %.*s", getConnectedIp().c_str(), getConnectedPort(), size, data);
 
         boost::system::error_code error;
-        boost::asio::write(socket_.get(), boost::asio::buffer(data, size), error);
-        if (error)
-        {
-            LOG_DEBUG_ERR("[%s:%d] Sending failed: %s", getConnectedIp().c_str(), getConnectedPort(), error.message().c_str());
-            notifyError(error.message());
-        }
-
-        return !error;
+        auto self = this->shared_from_this();
+        boost::asio::async_write(
+            socket_.get(), boost::asio::buffer(data, size),
+            [this, self](const boost::system::error_code& error, std::size_t bytes_transferred)
+            {
+                if (error)
+                {
+                    LOG_DEBUG_ERR("[%s:%d] Sending failed: %s", getConnectedIp().c_str(),
+                                  getConnectedPort(), error.message().c_str());
+                    notifyError(error.message());
+                }
+            });
+        return true;
     }
 
     void triggerRead()

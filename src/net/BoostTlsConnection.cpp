@@ -39,13 +39,31 @@ public:
         socket_.set_verify_mode(boost::asio::ssl::verify_none);
     }
 
-    template <class ITERATOR>
-    void connect(ITERATOR& iterator)
+    template <class ITERATOR, class HANDLER>
+    void connect(ITERATOR& iterator, HANDLER handler)
     {
-        boost::asio::connect(socket_.lowest_layer(), iterator);
-        socket_.lowest_layer().set_option(boost::asio::ip::tcp::no_delay(true));
-        socket_.lowest_layer().set_option(boost::asio::socket_base::keep_alive(true));
-        socket_.handshake(boost::asio::ssl::stream_base::client);
+        boost::asio::async_connect(
+            socket_.lowest_layer(), iterator,
+            [this, handler](const boost::system::error_code& ec, const ITERATOR& iterator)
+            {
+              if (!ec)
+              {
+                  socket_.lowest_layer().set_option(boost::asio::ip::tcp::no_delay(true));
+                  socket_.lowest_layer().set_option(boost::asio::socket_base::keep_alive(true));
+                  socket_.async_handshake(
+                      boost::asio::ssl::stream_base::client,
+                      [handler](const boost::system::error_code& ec)
+                      {
+                        handler(ec);
+                      });
+              }
+              else
+              {
+                  handler(ec);
+              }
+
+            }
+        );
     }
 
     SocketType& get()

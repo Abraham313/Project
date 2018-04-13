@@ -36,12 +36,21 @@ public:
     {
     }
 
-    template <class ITERATOR>
-    void connect(ITERATOR& iterator)
+    template <class ITERATOR, class HANDLER>
+    void connect(ITERATOR& iterator, HANDLER handler)
     {
-        boost::asio::connect(socket_, iterator);
-        socket_.set_option(boost::asio::ip::tcp::no_delay(true));
-        socket_.set_option(boost::asio::socket_base::keep_alive(true));
+        boost::asio::async_connect(
+            socket_, iterator,
+            [this, handler](const boost::system::error_code& ec, const ITERATOR& iterator)
+            {
+                if (!ec)
+                {
+                    socket_.set_option(boost::asio::ip::tcp::no_delay(true));
+                    socket_.set_option(boost::asio::socket_base::keep_alive(true));
+                }
+                handler(ec);
+            }
+            );
     }
 
     SocketType& get()

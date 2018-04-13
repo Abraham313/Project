@@ -88,7 +88,6 @@ void Client::connect()
     m_connection = establishConnection(shared_from_this(),
                                        m_url.useTls() ? CONNECTION_TYPE_TLS : CONNECTION_TYPE_TCP,
                                        m_url.host(), m_url.port());
-    login();
 }
 
 
@@ -297,11 +296,14 @@ bool Client::parseLogin(const rapidjson::Value &result, int *code)
 
 int64_t Client::send(char* buf, size_t size)
 {
-    m_connection->send(buf, size);
+    if (m_connection)
+    {
+      m_connection->send(buf, size);
+      m_expire = uv_now(uv_default_loop()) + kResponseTimeout;
+      m_sequence++;
+    }
 
-    m_expire = uv_now(uv_default_loop()) + kResponseTimeout;
-
-    return m_sequence++;
+    return m_sequence;
 }
 
 
@@ -514,6 +516,11 @@ void Client::startTimeout()
     uv_timer_start(&m_keepAliveTimer, [](uv_timer_t *handle) { getClient(handle->data)->ping(); }, kKeepAliveTimeout, 0);
 }
 
+void Client::onConnected()
+{
+    LOG_DEBUG("onConnected");
+    login();
+}
 
 void Client::onReceived(char* data, std::size_t size)
 {

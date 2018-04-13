@@ -33,6 +33,15 @@ Connection::Connection(const ConnectionListener::Ptr &listener)
 {
 }
 
+void Connection::notifyConnected()
+{
+    ConnectionListener::Ptr listener = listener_.lock();
+    if (listener)
+    {
+        listener->onConnected();
+    }
+}
+
 void Connection::notifyRead(char* data, size_t size)
 {
     ConnectionListener::Ptr listener = listener_.lock();
