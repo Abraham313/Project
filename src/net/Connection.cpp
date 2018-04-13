@@ -47,7 +47,7 @@ void Connection::notifyRead(char* data, size_t size)
     ConnectionListener::Ptr listener = listener_.lock();
     if (listener)
     {
-        listener->onReceived(data, size);
+        listener->scheduleOnReceived(data, size);
     }
 }
 
@@ -56,7 +56,7 @@ void Connection::notifyError(const std::string& error)
     ConnectionListener::Ptr listener = listener_.lock();
     if (listener)
     {
-        listener->onError(error);
+        listener->scheduleOnError(error);
     }
 }
 

@@ -66,13 +66,21 @@ Client::Client(int id, const char *agent, IClientListener *listener) :
 
     uv_timer_init(uv_default_loop(), &m_keepAliveTimer);
 
+    uv_mutex_init(&m_mutex);
+
     uv_async_init(uv_default_loop(), &onConnectedAsync, Client::onConnected);
+    uv_async_init(uv_default_loop(), &onReceivedAsync, Client::onReceived);
+    uv_async_init(uv_default_loop(), &onErrorAsync, Client::onError);
 }
 
 
 Client::~Client()
 {
     uv_close((uv_handle_t*) &onConnectedAsync, NULL);
+    uv_close((uv_handle_t*) &onReceivedAsync, NULL);
+    uv_close((uv_handle_t*) &onErrorAsync, NULL);
+
+    uv_mutex_destroy(&m_mutex);
 }
 
 void Client::connect(const Url *url)
@@ -356,6 +364,42 @@ void Client::login()
     send(m_sendBuf, size + 1);
 }
 
+void Client::processReceivedData(char* data, size_t size)
+{
+    LOG_DEBUG("processReceivedData");
+
+    if ((size_t) size > (sizeof(m_buf) - 8 - m_recvBufPos)) {
+        reconnect();
+        return;
+    }
+
+    m_recvBufPos += size;
+
+    char* end;
+    char* start = data;
+    size_t remaining = m_recvBufPos;
+
+    while ((end = static_cast<char*>(memchr(start, '\n', remaining))) != nullptr) {
+        end++;
+        size_t len = end - start;
+        parse(start, len);
+
+        remaining -= len;
+        start = end;
+    }
+
+    if (remaining == 0) {
+        m_recvBufPos = 0;
+        return;
+    }
+
+    if (start == data) {
+        return;
+    }
+
+    memcpy(data, start, remaining);
+    m_recvBufPos = remaining;
+}
 
 void Client::parse(char *line, size_t len)
 {
@@ -537,50 +581,54 @@ void Client::scheduleOnConnected()
     uv_async_send(&onConnectedAsync);
 }
 
-void Client::onReceived(char* data, std::size_t size)
+void Client::onReceived(uv_async_t *handle)
 {
     LOG_DEBUG("onReceived");
 
-    if ((size_t) size > (sizeof(m_buf) - 8 - m_recvBufPos)) {
-        reconnect();
-        return;
+    auto client = getClient(handle->data);
+    if (client) {
+        uv_mutex_lock(&client->m_mutex);
+
+        while (!client->m_readQueue.empty()) {
+            std::string data = client->m_readQueue.front();
+            client->processReceivedData(const_cast<char *>(data.c_str()), data.size());
+            client->m_readQueue.pop_front();
+        }
+
+        uv_mutex_unlock(&client->m_mutex);
     }
-
-    m_recvBufPos += size;
-
-    char* end;
-    char* start = data;
-    size_t remaining = m_recvBufPos;
-
-    while ((end = static_cast<char*>(memchr(start, '\n', remaining))) != nullptr) {
-        end++;
-        size_t len = end - start;
-        parse(start, len);
-
-        remaining -= len;
-        start = end;
-    }
-
-    if (remaining == 0) {
-        m_recvBufPos = 0;
-        return;
-    }
-
-    if (start == data) {
-        return;
-    }
-
-    memcpy(data, start, remaining);
-    m_recvBufPos = remaining;
 }
 
-void Client::onError(const std::string& error)
+void Client::scheduleOnReceived(char* data, std::size_t size)
+{
+    LOG_DEBUG("scheduleOnReceived");
+
+    uv_mutex_lock(&m_mutex);
+    m_readQueue.emplace_back(data, size);
+    uv_mutex_unlock(&m_mutex);
+
+    onReceivedAsync.data = this;
+    uv_async_send(&onReceivedAsync);
+}
+
+void Client::onError(uv_async_t *handle)
 {
     LOG_DEBUG("onError");
+
+    auto client = getClient(handle->data);
+    if (client) {
+        client->reconnect();
+    }
+}
+
+void Client::scheduleOnError(const std::string &error)
+{
+    LOG_DEBUG("scheduleOnError");
 
     if (!m_quiet) {
         LOG_ERR("[%s:%u] Error: \"%s\"", m_url.host(), m_url.port(), error.c_str());
     }
 
-    reconnect();
+    onErrorAsync.data = this;
+    uv_async_send(&onErrorAsync);
 }

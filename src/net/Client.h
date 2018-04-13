@@ -29,6 +29,7 @@
 #include <map>
 #include <uv.h>
 #include <memory>
+#include <list>
 
 #include "net/Connection.h"
 #include "net/Job.h"
@@ -69,7 +70,8 @@ public:
     inline void setRetryPause(int ms)        { m_retryPause = ms; }
 
     static void onConnected(uv_async_t *handle);
-    //static void onReceived(uv_async_t *handle);
+    static void onReceived(uv_async_t *handle);
+    static void onError(uv_async_t *handle);
 
 private:
     bool isCriticalError(const char *message);
@@ -79,6 +81,7 @@ private:
     void close();
     void reconnect();
     void login();
+    void processReceivedData(char* data, size_t size);
     void parse(char *line, size_t len);
     void parseNotification(const char *method, const rapidjson::Value &params, const rapidjson::Value &error);
     void parseExtensions(const rapidjson::Value &value);
@@ -87,8 +90,8 @@ private:
     void startTimeout();
 
     virtual void scheduleOnConnected();
-    virtual void onReceived(char* data, std::size_t size);
-    virtual void onError(const std::string& error);
+    virtual void scheduleOnReceived(char *data, size_t size);
+    virtual void scheduleOnError(const std::string &error);
 
     static inline Client *getClient(void *data) { return static_cast<Client*>(data); }
 
@@ -110,6 +113,9 @@ private:
     uint64_t m_expire;
     Url m_url;
     uv_buf_t m_recvBuf;
+
+    uv_mutex_t m_mutex;
+    std::list<std::string> m_readQueue;
 
     Connection::Ptr m_connection;
 

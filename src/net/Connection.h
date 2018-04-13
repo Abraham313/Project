@@ -37,8 +37,8 @@ protected:
 
 public:
     virtual void scheduleOnConnected() = 0;
-    virtual void onReceived(char* data, std::size_t size) = 0;
-    virtual void onError(const std::string& error) = 0;
+    virtual void scheduleOnReceived(char *data, std::size_t size) = 0;
+    virtual void scheduleOnError(const std::string &error) = 0;
 };
 
 class Connection : private boost::noncopyable
