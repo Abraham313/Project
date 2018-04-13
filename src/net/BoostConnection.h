@@ -62,6 +62,8 @@ public:
             LOG_DEBUG("[%s:%d] Disconnecting", getConnectedIp().c_str(), getConnectedPort());
             socket_.get().lowest_layer().close();
         }
+
+        ioService_.stop();
     }
 
     bool isConnected() const override
