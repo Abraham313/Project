@@ -36,9 +36,7 @@ public:
 
     ~BoostConnection()
     {
-        if (isConnected()) {
-            disconnect();
-        }
+        disconnect();
     }
 
     void connect(const std::string& server, uint16_t port)
@@ -60,14 +58,16 @@ public:
 
     void disconnect()
     {
-        socket_.get().lowest_layer().close();
+        if (isConnected()) {
+            LOG_DEBUG("[%s:%d] Disconnecting", getConnectedIp().c_str(), getConnectedPort());
+            socket_.get().lowest_layer().close();
+        }
     }
 
     bool isConnected() const override
     {
         boost::system::error_code ec;
         socket_.get().lowest_layer().remote_endpoint(ec);
-
         return !ec && socket_.get().lowest_layer().is_open();
     }
 
