@@ -51,6 +51,8 @@ public:
                         boost::bind(&BoostConnection::handleConnect, this->shared_from_this(),
                                     boost::asio::placeholders::error));
 
+
+
         std::thread([this]() { ioService_.run(); }).detach();
     }
 
