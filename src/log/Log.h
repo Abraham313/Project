@@ -71,7 +71,6 @@ private:
 
     uv_mutex_t m_mutex;
     std::vector<ILogBackend*> m_backends;
-    std::recursive_mutex m_mutex;
 };
 
 
