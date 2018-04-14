@@ -64,10 +64,12 @@ public:
     void text(const char* fmt, ...);
 
 private:
-    inline Log() {}
+    Log();
     ~Log();
 
     static Log *m_self;
+
+    uv_mutex_t m_mutex;
     std::vector<ILogBackend*> m_backends;
     std::recursive_mutex m_mutex;
 };
