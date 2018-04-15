@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
+option(HUNTER_ENABLED "Use hunter package manager for dependency resolution" OFF)
+
 include("cmake/HunterGate.cmake")
 set(HUNTER_STATUS_DEBUG OFF)
 set(HUNTER_TLS_VERIFY ON)
