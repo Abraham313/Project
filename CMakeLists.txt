@@ -130,7 +130,12 @@ add_definitions(-fexceptions)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-find_package(libuv CONFIG REQUIRED)
+if(HUNTER_ENABLED)
+    find_package(libuv CONFIG REQUIRED)
+    set(UV_LIBRARIES libuv::uv)
+else()
+    find_package(UV REQUIRED)
+endif()
 find_package(Boost 1.62.0 COMPONENTS system REQUIRED)
 
 include(cmake/flags.cmake)
@@ -236,7 +241,7 @@ add_executable(xmrigMiner ${SOURCES} ${SOURCES_CRYPTO} ${HTTPD_SOURCES} ${SOURCE
 set_target_properties(xmrigMiner PROPERTIES OUTPUT_NAME ${MINER_EXECUTABLE_NAME})
 
 target_link_libraries(xmrigMiner xmrig_common xmrig_os_dependencies xmrig_cpuid Boost::system
-        libuv::uv ${MHD_LIBRARY} ${EXTRA_LIBS} ${CPUID_LIB})
+        ${UV_LIBRARIES} ${MHD_LIBRARY} ${EXTRA_LIBS} ${CPUID_LIB})
 
 if (WITH_CC_CLIENT)
     target_link_libraries(xmrigMiner xmrig_cc_common)
@@ -255,7 +260,7 @@ if (WITH_CC_SERVER AND MHD_FOUND)
     add_executable(xmrigCCServer ${SOURCES_CC_SERVER} res/app.rc)
     target_link_libraries(xmrigCCServer
             xmrig_common_cc xmrig_os_dependencies xmrig_cpuid xmrig_cc_common
-            libuv::uv ${MHD_LIBRARY} ${EXTRA_LIBS} ${CPUID_LIB})
+            ${UV_LIBRARIES} ${MHD_LIBRARY} ${EXTRA_LIBS} ${CPUID_LIB})
 
     if (WITH_TLS)
 	    target_link_libraries(xmrigCCServer xmrig_tls ${OPENSSL_LIBRARIES})
