@@ -26,7 +26,7 @@
 #define __OPTIONS_H__
 
 #ifndef MAX_NUM_HASH_BLOCKS
-#define MAX_NUM_HASH_BLOCKS 5
+#define MAX_NUM_HASH_BLOCKS 1
 #endif
 
 #include <cstdint>
