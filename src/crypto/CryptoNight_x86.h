@@ -1118,62 +1118,108 @@ public:
                                  uint8_t* __restrict__ output,
                                  ScratchPad** __restrict__ scratchPad)
     {
-        const uint8_t* l;
-        uint64_t* h;
-        uint64_t al;
-        uint64_t ah;
-        __m128i bx;
-        uint64_t idx;
-
         keccak(static_cast<const uint8_t*>(input), (int) size, scratchPad[0]->state, 200);
 
-        uint64_t tweak1_2 = (*reinterpret_cast<const uint64_t*>(reinterpret_cast<const uint8_t*>(input) + 35) ^
-                             *(reinterpret_cast<const uint64_t*>(scratchPad[0]->state) + 24));
-        l = scratchPad[0]->memory;
-        h = reinterpret_cast<uint64_t*>(scratchPad[0]->state);
+        const uint8_t*l = scratchPad[0]->memory;
+        uint64_t* h = reinterpret_cast<uint64_t*>(scratchPad[0]->state);
 
         cn_explode_scratchpad<MEM, SOFT_AES>((__m128i*) h, (__m128i*) l);
 
-        al = h[0] ^ h[4];
-        ah = h[1] ^ h[5];
-        bx = _mm_set_epi64x(h[3] ^ h[7], h[2] ^ h[6]);
-        idx = h[0] ^ h[4];
+        uint64_t al = h[0] ^ h[4];
+        uint64_t ah = h[1] ^ h[5];
+        __m128i bx0 = _mm_set_epi64x(h[3] ^ h[7], h[2] ^ h[6]);
+        __m128i bx1 = _mm_set_epi64x(h[9] ^ h[11], h[8] ^ h[10]);
+
+        uint64_t idx = h[0] ^ h[4];
+
+        __m128i division_result_xmm = _mm_cvtsi64_si128(h[12]);
+        uint64_t sqrt_result = h[13];
+
+#ifdef PGO_BUILD
+    #ifdef _MSC_VER
+		_control87(RC_UP, MCW_RC);
+    #else
+		std::fesetround(FE_UPWARD);
+    #endif
+#else
+    #ifdef _MSC_VER
+        _control87(RC_DOWN, MCW_RC);
+    #else
+        std::fesetround(FE_TOWARDZERO);
+    #endif
+#endif
 
         for (size_t i = 0; i < ITERATIONS; i++) {
             __m128i cx;
 
+            const __m128i ax = _mm_set_epi64x(ah, al);
+
             if (SOFT_AES) {
-                cx = soft_aesenc((uint32_t*)&l[idx & MASK], _mm_set_epi64x(ah, al));
+                cx = soft_aesenc((uint32_t*)&l[idx & MASK], ax);
             } else {
                 cx = _mm_load_si128((__m128i*) &l[idx & MASK]);
-                cx = _mm_aesenc_si128(cx, _mm_set_epi64x(ah, al));
+                cx = _mm_aesenc_si128(cx, ax);
             }
 
-            _mm_store_si128((__m128i*) &l[idx & MASK], _mm_xor_si128(bx, cx));
-            const uint8_t tmp = reinterpret_cast<const uint8_t*>(&l[idx & MASK])[11];
-            static const uint32_t table = 0x75310;
-            const uint8_t index = (((tmp >> INDEX_SHIFT) & 6) | (tmp & 1)) << 1;
-            ((uint8_t*)(&l[idx & MASK]))[11] = tmp ^ ((table >> index) & 0x30);
+            __m128i chunk1 = _mm_load_si128((__m128i *)&l[(idx & MASK) ^ 0x10]);
+            __m128i chunk2 = _mm_load_si128((__m128i *)&l[(idx & MASK) ^ 0x20]);
+            __m128i chunk3 = _mm_load_si128((__m128i *)&l[(idx & MASK) ^ 0x30]);
+            _mm_store_si128((__m128i *)&l[(idx & MASK) ^ 0x10], _mm_add_epi64(chunk3, bx1));
+            _mm_store_si128((__m128i *)&l[(idx & MASK) ^ 0x20], _mm_add_epi64(chunk1, bx0));
+            _mm_store_si128((__m128i *)&l[(idx & MASK) ^ 0x30], _mm_add_epi64(chunk2, ax));
 
+            _mm_store_si128((__m128i*) &l[idx & MASK], _mm_xor_si128(bx0, cx));
             idx = EXTRACT64(cx);
-            bx = cx;
 
             uint64_t hi, lo, cl, ch;
             cl = ((uint64_t*) &l[idx & MASK])[0];
             ch = ((uint64_t*) &l[idx & MASK])[1];
+
+            // Use division and square root results from the _previous_ iteration to hide the latency
+            const uint64_t cx0 = _mm_cvtsi128_si64(cx);
+            cl ^= static_cast<uint64_t>(_mm_cvtsi128_si64(division_result_xmm)) ^ (sqrt_result << 32);
+            const uint32_t d = (cx0 + (sqrt_result << 1)) | 0x80000001UL;
+
+            // Most and least significant bits in the divisor are set to 1
+            // to make sure we don't divide by a small or even number,
+            // so there are no shortcuts for such cases
+            //
+            // Quotient may be as large as (2^64 - 1)/(2^31 + 1) = 8589934588 = 2^33 - 4
+            // We drop the highest bit to fit both quotient and remainder in 32 bits
+
+            // Compiler will optimize it to a single div instruction
+            const uint64_t cx1 = _mm_cvtsi128_si64(_mm_srli_si128(cx, 8));
+            const uint64_t division_result = static_cast<uint32_t>(cx1 / d) + ((cx1 % d) << 32);
+            division_result_xmm = _mm_cvtsi64_si128(static_cast<int64_t>(division_result));
+
+            // Use division_result as an input for the square root to prevent parallel implementation in hardware
+            sqrt_result = int_sqrt_v2(cx0 + division_result);
+
             lo = __umul128(idx, cl, &hi);
+
+            chunk1 = _mm_xor_si128(_mm_load_si128((__m128i *)&l[(idx & MASK) ^ 0x10]), _mm_set_epi64x(lo, hi));
+            chunk2 = _mm_load_si128((__m128i *)&l[(idx & MASK) ^ 0x20]);
+            chunk3 = _mm_load_si128((__m128i *)&l[(idx & MASK) ^ 0x30]);
+
+            hi ^= ((uint64_t*)&l[(idx & MASK) ^ 0x20])[0];
+            lo ^= ((uint64_t*)&l[(idx & MASK) ^ 0x20])[1];
+
+            _mm_store_si128((__m128i *)&l[(idx & MASK) ^ 0x10], _mm_add_epi64(chunk3, bx1));
+            _mm_store_si128((__m128i *)&l[(idx & MASK) ^ 0x20], _mm_add_epi64(chunk1, bx0));
+            _mm_store_si128((__m128i *)&l[(idx & MASK) ^ 0x30], _mm_add_epi64(chunk2, ax));
 
             al += hi;
             ah += lo;
 
-            ah ^= tweak1_2;
             ((uint64_t*) &l[idx & MASK])[0] = al;
             ((uint64_t*) &l[idx & MASK])[1] = ah;
-            ah ^= tweak1_2;
 
             ah ^= ch;
             al ^= cl;
             idx = al;
+
+            bx1 = bx0;
+            bx0 = cx;
         }
 
         cn_implode_scratchpad<MEM, SOFT_AES>((__m128i*) l, (__m128i*) h);
