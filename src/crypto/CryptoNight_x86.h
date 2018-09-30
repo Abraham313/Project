@@ -108,9 +108,15 @@ static inline uint64_t __umul128(uint64_t multiplier, uint64_t multiplicand, uin
 #endif
 
 #ifdef _MSC_VER
-#   define SET_ROUNDING_MODE() _control87(RC_DOWN, MCW_RC);
 #else
-#   define SET_ROUNDING_MODE() std::fesetround(FE_TOWARDZERO);
+#endif
+
+#ifdef _MSC_VER
+#   define SET_ROUNDING_MODE_UP() _control87(RC_UP, MCW_RC);
+#   define SET_ROUNDING_MODE_DOWN() _control87(RC_DOWN, MCW_RC);
+#else
+#   define SET_ROUNDING_MODE_UP() std::fesetround(FE_UPWARD);
+#   define SET_ROUNDING_MODE_DOWN() std::fesetround(FE_TOWARDZERO);
 #endif
 
 #   define SHUFFLE_PHASE_1(l, idx_, bx0, bx1, ax) \
@@ -1234,7 +1240,7 @@ public:
         __m128i division_result_xmm_0 = _mm_cvtsi64_si128(h[12]);
         __m128i sqrt_result_xmm_0 =  _mm_cvtsi64_si128(h[13]);;
 
-        SET_ROUNDING_MODE();
+        SET_ROUNDING_MODE_DOWN();
 
         for (size_t i = 0; i < ITERATIONS; i++) {
             __m128i cx;
@@ -1248,7 +1254,7 @@ public:
                 cx = _mm_aesenc_si128(cx, ax);
             }
 
-            SHUFFLE_PHASE_1(l, (idx&MASK), bx0, bx1, ax);
+            SHUFFLE_PHASE_1(l, (idx&MASK), bx0, bx1, ax)
 
             _mm_store_si128((__m128i*) &l[idx & MASK], _mm_xor_si128(bx0, cx));
 
@@ -1258,11 +1264,11 @@ public:
             cl = ((uint64_t*) &l[idx & MASK])[0];
             ch = ((uint64_t*) &l[idx & MASK])[1];
 
-            INTEGER_MATH_V2(0, cl, cx);
+            INTEGER_MATH_V2(0, cl, cx)
 
             lo = __umul128(idx, cl, &hi);
 
-            SHUFFLE_PHASE_2(l, (idx&MASK), bx0, bx1, ax, lo, hi);
+            SHUFFLE_PHASE_2(l, (idx&MASK), bx0, bx1, ax, lo, hi)
 
             al += hi;
             ah += lo;
@@ -1817,11 +1823,7 @@ public:
         __m128i division_result_xmm = _mm_unpacklo_epi64(_mm_cvtsi64_si128(h0[12]), _mm_cvtsi64_si128(h1[12]));
         __m128i sqrt_result_xmm = _mm_unpacklo_epi64(_mm_cvtsi64_si128(h0[13]), _mm_cvtsi64_si128(h1[13]));
 
-#ifdef _MSC_VER
-        _control87(RC_UP, MCW_RC);
-#else
-        std::fesetround(FE_UPWARD);
-#endif
+        SET_ROUNDING_MODE_UP()
 
         for (size_t i = 0; i < ITERATIONS; i++) {
             __m128i cx0;
@@ -1841,19 +1843,8 @@ public:
                 cx1 = _mm_aesenc_si128(cx1, ax1);
             }
 
-            __m128i chunk1 = _mm_load_si128((__m128i *)&l0[(idx0 & MASK) ^ 0x10]);
-            __m128i chunk2 = _mm_load_si128((__m128i *)&l0[(idx0 & MASK) ^ 0x20]);
-            __m128i chunk3 = _mm_load_si128((__m128i *)&l0[(idx0 & MASK) ^ 0x30]);
-            _mm_store_si128((__m128i *)&l0[(idx0 & MASK) ^ 0x10], _mm_add_epi64(chunk3, bx10));
-            _mm_store_si128((__m128i *)&l0[(idx0 & MASK) ^ 0x20], _mm_add_epi64(chunk1, bx00));
-            _mm_store_si128((__m128i *)&l0[(idx0 & MASK) ^ 0x30], _mm_add_epi64(chunk2, ax0));
-
-            chunk1 = _mm_load_si128((__m128i *)&l1[(idx1 & MASK) ^ 0x10]);
-            chunk2 = _mm_load_si128((__m128i *)&l1[(idx1 & MASK) ^ 0x20]);
-            chunk3 = _mm_load_si128((__m128i *)&l1[(idx1 & MASK) ^ 0x30]);
-            _mm_store_si128((__m128i *)&l1[(idx1 & MASK) ^ 0x10], _mm_add_epi64(chunk3, bx11));
-            _mm_store_si128((__m128i *)&l1[(idx1 & MASK) ^ 0x20], _mm_add_epi64(chunk1, bx01));
-            _mm_store_si128((__m128i *)&l1[(idx1 & MASK) ^ 0x30], _mm_add_epi64(chunk2, ax1));
+            SHUFFLE_PHASE_1(l0, (idx0 & MASK), bx00, bx10, ax0)
+            SHUFFLE_PHASE_1(l1, (idx1 & MASK), bx01, bx11, ax1)
 
             _mm_store_si128((__m128i*) &l0[idx0 & MASK], _mm_xor_si128(bx00, cx0));
             _mm_store_si128((__m128i*) &l1[idx1 & MASK], _mm_xor_si128(bx01, cx1));
@@ -1870,16 +1861,7 @@ public:
 
             lo = __umul128(idx0, cl, &hi);
 
-            chunk1 = _mm_xor_si128(_mm_load_si128((__m128i *)&l0[(idx0 & MASK) ^ 0x10]), _mm_set_epi64x(lo, hi));
-            chunk2 = _mm_load_si128((__m128i *)&l0[(idx0 & MASK) ^ 0x20]);
-            chunk3 = _mm_load_si128((__m128i *)&l0[(idx0 & MASK) ^ 0x30]);
-
-            hi ^= ((uint64_t*)&l0[(idx0 & MASK) ^ 0x20])[0];
-            lo ^= ((uint64_t*)&l0[(idx0 & MASK) ^ 0x20])[1];
-
-            _mm_store_si128((__m128i *)&l0[(idx0 & MASK) ^ 0x10], _mm_add_epi64(chunk3, bx10));
-            _mm_store_si128((__m128i *)&l0[(idx0 & MASK) ^ 0x20], _mm_add_epi64(chunk1, bx00));
-            _mm_store_si128((__m128i *)&l0[(idx0 & MASK) ^ 0x30], _mm_add_epi64(chunk2, ax0));
+            SHUFFLE_PHASE_2(l0, (idx0 & MASK), bx00, bx10, ax0, lo, hi)
 
             al0 += hi;
             ah0 += lo;
@@ -1943,16 +1925,7 @@ public:
 
             lo = __umul128(idx1, cl, &hi);
 
-            chunk1 = _mm_xor_si128(_mm_load_si128((__m128i *)&l1[(idx1 & MASK) ^ 0x10]), _mm_set_epi64x(lo, hi));
-            chunk2 = _mm_load_si128((__m128i *)&l1[(idx1 & MASK) ^ 0x20]);
-            chunk3 = _mm_load_si128((__m128i *)&l1[(idx1 & MASK) ^ 0x30]);
-
-            hi ^= ((uint64_t*)&l1[(idx1 & MASK) ^ 0x20])[0];
-            lo ^= ((uint64_t*)&l1[(idx1 & MASK) ^ 0x20])[1];
-
-            _mm_store_si128((__m128i *)&l1[(idx1 & MASK) ^ 0x10], _mm_add_epi64(chunk3, bx11));
-            _mm_store_si128((__m128i *)&l1[(idx1 & MASK) ^ 0x20], _mm_add_epi64(chunk1, bx01));
-            _mm_store_si128((__m128i *)&l1[(idx1 & MASK) ^ 0x30], _mm_add_epi64(chunk2, ax1));
+            SHUFFLE_PHASE_2(l1, (idx1 & MASK), bx01, bx11, ax1, lo, hi)
 
             al1 += hi;
             ah1 += lo;
